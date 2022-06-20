@@ -1,0 +1,28 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+
+model Dashboard {
+  id String  @id @default(cuid())
+  name String
+  position Int
+  contents Content[]
+}
+
+model Content {
+  id String  @id @default(cuid())
+  text String
+  position Int
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+  dashboardId String
+}
