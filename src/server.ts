@@ -25,11 +25,28 @@ server.post('/:dashboardId/move',async (req, res) => {
     return res.send(401).send({msg: 'cannot move dashboard'});
    }
 
-     // sposta la dashboard
+     
     const dashboards = await dashboardService.getDashboards();
     res.send(dashboards);
-}
-)
+});
+
+server.post('/:dashboardId/:contentId/move',async (req, res) => {
+
+    const to = req.body;
+    const { dashboardId, contentId } = req.params;
+    
+  
+
+    // controlla che la dashboard esiste
+   const ok = await dashboardService.moveContent(contentId,to.position,dashboardId, to.dashboardId);
+   if(!ok){
+    return res.send(401).send({msg: 'cannot move content'});
+   }
+
+     
+    const dashboards = await dashboardService.getDashboards();
+    res.send(dashboards);
+});
 
 server.listen(PORT, () => {
     console.log(`server listening at http://localhost:${PORT}`);
