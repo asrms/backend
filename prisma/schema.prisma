@@ -39,3 +39,9 @@ model Content {
   @@unique([id,dashboardId])
 }
 
+model JwtKey {
+  id Int @id @default(autoincrement())
+  privateKey String
+  publicKey String
+}
+

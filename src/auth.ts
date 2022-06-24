@@ -4,11 +4,13 @@ import { prisma } from './prisma';
 import { hashSync, compareSync } from 'bcrypt';
 import { userInfo } from 'os';
 import { User } from '@prisma/client';
+import { getJwtKeys } from './key';
+import jwt from 'jsonwebtoken';
 
 const auth = express();
 
-auth.post('/login',async (req,res) => {
-    const {email, password} = req.body;
+async function verifyEmailAndPassword(email: string, password: string): Promise<User | null> {
+
     const user = await prisma.user.findUnique({
         where: {
             email: email
@@ -16,17 +18,49 @@ auth.post('/login',async (req,res) => {
     });
 
     if(!user){
-        return res.status(401).send({msg: 'invalid authentication'});
+        return null;
     }
 
    if(!compareSync(password,user.passwordHash)){
-    return res.status(401).send({msg: 'invalid authentication'});
+    return null;
    }
 
+   return user;
+    
+    
+}
+
+function getExpTime(min: number){
+    const now = Math.trunc(new Date().getTime() / 1000);
+    return now + min * 60;
+}
+
+async function generateJwt(user:User): Promise<string> {
+
+    const payLoad = {
+        aud: 'access',
+        exp: getExpTime(2 * 60),
+        id: user.id,
+        email: user.email
+    };
+
+    const {privateKey} = await getJwtKeys();
+    return jwt.sign(payLoad,privateKey, {algorithm: 'RS256'} )
+    
+}
+
+auth.post('/login',async (req,res) => {
+    const {privateKey} = await getJwtKeys();
+    const {email, password} = req.body;
+    const user = await verifyEmailAndPassword(email, password);
+
+    if(!user){
+        return res.status(401).send({msg: 'invalid authentication'});
+    }
+
+    const token = await generateJwt(user);
    return res.status(201).send({
-    id: user.id,
-    email: user.email,
-    name: user.name
+    accessToken: token,
 });
 
 });
