@@ -1,15 +1,23 @@
 
 import { Content, Dashboard, PrismaClient} from '@prisma/client';
-import { count } from 'console';
 
 
 export class DashboardService{
 
     constructor(private readonly prisma: PrismaClient) {}
 
-   async moveDashboard(dashboardId: string, position:  number): Promise<boolean>{
+   async moveDashboard(userId: string,dashboardId: string, position:  number): Promise<boolean>{
+
+    
+    const dashboardUser = this.getDashboard(userId,dashboardId);
+    if(!dashboardUser){
+        return false;
+    }
 
         const dashboards = await   this.prisma.dashboard.findMany({
+            where: {
+                userId: userId,
+            },
             orderBy: {
                 position: 'asc',
             }
@@ -37,10 +45,24 @@ export class DashboardService{
 
 }
 
-async moveContent(contentId: string, position:  number, fromDashboardId: string, toDashboardId: string): Promise<boolean>{
-
+async moveContent(userId: string,contentId: string, position:  number, fromDashboardId: string, toDashboardId: string): Promise<boolean>{
 
     const fromToSameDashboard = fromDashboardId == toDashboardId;
+
+    const fromDashboard = this.getDashboard(userId,fromDashboardId);
+    if(!fromDashboard){
+        return false;
+    }
+
+    if(!fromToSameDashboard){
+        const toDashboard = this.getDashboard(userId,toDashboardId);
+        if(!toDashboard){
+            return false;
+        }
+
+    }
+
+
 
     const fromContents = await   this.prisma.content.findMany({
         orderBy: {
@@ -86,8 +108,11 @@ return true;
 
 }
 
-     getDashboards(){
+     getDashboards(userId: string){
         return this.prisma.dashboard.findMany({
+            where: {
+                userId: userId,
+            },
             orderBy: {
                 position: 'asc',
             },
@@ -102,7 +127,7 @@ return true;
 
     }
 
-   async reorderDashboard(dashboards: Dashboard[]){
+   private async reorderDashboard(dashboards: Dashboard[]){
   
 
     // usiamo map per trasformare array in list
@@ -154,7 +179,7 @@ return true;
 
     }
 
-    async reorderContent(contents: Content[], dashboardId: string){
+   private async reorderContent(contents: Content[], dashboardId: string){
   
 
         // usiamo map per trasformare array in list
@@ -176,7 +201,11 @@ return true;
     
         }
 
-        async createContent(dashboardId:string, text: string){
+        async createContent(userId: string,dashboardId:string, text: string){
+            const dashboard = this.getDashboard(userId,dashboardId);
+            if(!dashboard){
+                return null;
+            }
             const countContent = await this.prisma.content.count({
                 where: {
                     dashboardId: dashboardId
@@ -191,21 +220,27 @@ return true;
             });
         }
 
-        async createDashboard(name: string){
+        async createDashboard( userId: string, name: string){
             const countDashboard = await this.prisma.dashboard.count();
            return await this.prisma.dashboard.create({
                 data: {
                     position: countDashboard,
-                    name: name
+                    name: name,
+                    userId: userId
                 }
             });
         }
 
         
-        async deleteDashboard(dashboardId: string){
+        async deleteDashboard(userId: string,dashboardId: string){
+            const dashboard = this.getDashboard(userId,dashboardId);
+            if(!dashboard){
+                return null;
+            }
             const contentsInDashboard = await this.prisma.content.count({
                 where: {
-                    dashboardId: dashboardId
+                    dashboardId: dashboardId,
+                    
                 }
             });
             if(contentsInDashboard > 0){
@@ -220,16 +255,30 @@ return true;
             });
         }
 
-        async deleteContent(dashboardId: string, contentId: string){
+        async deleteContent(userId: string,dashboardId: string, contentId: string){
             // dovremmo riuscire anche solo con la funzione delete perche dentro la tabella Content abbiamo messo  @@unique([id,dashboardId])
-
-            const deleted = await this.prisma.content.deleteMany({
+/*             const deleted = await this.prisma.content.deleteMany({
                  where: {
                     id:contentId,
                     dashboardId: dashboardId
                      
                  }
-             });
+             }); */
+
+             const dashboard = this.getDashboard(userId,dashboardId);
+             if(!dashboard){
+                 return null;
+             }
+
+             const deleted = await this.prisma.content.delete({
+                where: {
+                    id_dashboardId: {
+                        dashboardId: dashboardId,
+                        id: contentId
+                    }
+                    
+                }
+            });
 
             
              const allContents = await this.prisma.content.findMany({
@@ -244,5 +293,22 @@ return true;
             return deleted;
 
          }
+
+         
+         getDashboard(userId:string, dashboardId: string){
+            return this.prisma.dashboard.findUnique({
+                where: {
+                    id_userId: {
+                        id:dashboardId,
+                        userId:userId
+                    }
+                    
+
+                }
+            })
+
+         }
+
+         
 
 }
