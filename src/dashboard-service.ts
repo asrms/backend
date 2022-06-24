@@ -1,5 +1,6 @@
 
 import { Content, Dashboard, PrismaClient} from '@prisma/client';
+import { count } from 'console';
 
 
 export class DashboardService{
@@ -174,5 +175,74 @@ return true;
        await this.prisma.$transaction(updates);    
     
         }
+
+        async createContent(dashboardId:string, text: string){
+            const countContent = await this.prisma.content.count({
+                where: {
+                    dashboardId: dashboardId
+                }
+            });
+           return await this.prisma.content.create({
+                data: {
+                    position: countContent,
+                    text: text,
+                    dashboardId: dashboardId
+                }
+            });
+        }
+
+        async createDashboard(name: string){
+            const countDashboard = await this.prisma.dashboard.count();
+           return await this.prisma.dashboard.create({
+                data: {
+                    position: countDashboard,
+                    name: name
+                }
+            });
+        }
+
+        
+        async deleteDashboard(dashboardId: string){
+            const contentsInDashboard = await this.prisma.content.count({
+                where: {
+                    dashboardId: dashboardId
+                }
+            });
+            if(contentsInDashboard > 0){
+                return null;
+            }
+            const dashboards = await this.prisma.dashboard.findMany();
+            await this.reorderDashboard(dashboards);
+           return await this.prisma.dashboard.delete({
+                where: {
+                    id: dashboardId
+                }
+            });
+        }
+
+        async deleteContent(dashboardId: string, contentId: string){
+            // dovremmo riuscire anche solo con la funzione delete perche dentro la tabella Content abbiamo messo  @@unique([id,dashboardId])
+
+            const deleted = await this.prisma.content.deleteMany({
+                 where: {
+                    id:contentId,
+                    dashboardId: dashboardId
+                     
+                 }
+             });
+
+            
+             const allContents = await this.prisma.content.findMany({
+                where: {
+                   dashboardId: dashboardId
+                    
+                }
+            });
+
+            await this.reorderContent(allContents, dashboardId);
+
+            return deleted;
+
+         }
 
 }
