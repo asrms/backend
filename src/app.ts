@@ -3,6 +3,7 @@ import { DashboardService } from './dashboard-service';
 import { getJwtKeys } from './key';
 import { prisma } from './prisma';
 import jwt from 'jsonwebtoken';
+import {body, validationResult } from 'express-validator';
 
 const dashboardService = new DashboardService(prisma);
 
@@ -59,10 +60,14 @@ async function verifyToken(autHeader: string | undefined): Promise<string | null
 
  });
 
- app.post('/:dashboardId/move',async (req, res) => {
+ app.post('/:dashboardId/move',body('position').isInt(),async (req, res) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()){
+        return res.status(400).send({errors: errors.array()});
+    }
  
      const { position } = req.body;
-     const { dashboardId } = req.params;
+     const { dashboardId } = req.params!;
      const userId = res.locals.userId;
     /*  const user = await getUser(); */
    
@@ -78,10 +83,14 @@ async function verifyToken(autHeader: string | undefined): Promise<string | null
      res.send(dashboards);
  });
  
- app.post('/:dashboardId/:contentId/move',async (req, res) => {
+ app.post('/:dashboardId/:contentId/move',body('dashboardId').isString(),body('position').isInt(),async (req, res) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()){
+        return res.status(400).send({errors: errors.array()});
+    }
  
-     const to = req.body;
-     const { dashboardId, contentId } = req.params;
+     const to = req.body as {position: number, dashboardId: string};
+     const { dashboardId, contentId } = req.params!;
      const userId = res.locals.userId;
   /*    const user = await getUser(); */
    
@@ -104,7 +113,11 @@ async function verifyToken(autHeader: string | undefined): Promise<string | null
      res.send(dashboards);
  });
  
- app.post('/', async (req,res) => {
+ app.post('/',body('name').isString(), async (req,res) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()){
+        return res.status(400).send({errors: errors.array()});
+    }
      const {name} = req.body;
      const userId = res.locals.userId;
      /*    const user = await getUser(); */
@@ -113,10 +126,14 @@ async function verifyToken(autHeader: string | undefined): Promise<string | null
      res.send(dashboards);
  });
  
- app.post('/:dashboardId', async (req,res) => {
+ app.post('/:dashboardId',body('text').isString(), async (req,res) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()){
+        return res.status(400).send({errors: errors.array()});
+    }
     const userId = res.locals.userId;
     /*    const user = await getUser(); */
-     const { dashboardId } = req.params;
+     const { dashboardId } = req.params!;
      const {text} = req.body;
      await dashboardService.createContent(userId,dashboardId,text);
      const dashboards = await dashboardService.getDashboards(userId);

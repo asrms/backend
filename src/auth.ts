@@ -6,6 +6,7 @@ import { userInfo } from 'os';
 import { User } from '@prisma/client';
 import { getJwtKeys } from './key';
 import jwt from 'jsonwebtoken';
+import {body, validationResult } from 'express-validator';
 
 const auth = express();
 
@@ -49,8 +50,12 @@ async function generateJwt(user:User): Promise<string> {
     
 }
 
-auth.post('/login',async (req,res) => {
-    const {privateKey} = await getJwtKeys();
+auth.post('/login', body('email').isEmail(), body('password').isString(), async (req,res) => {
+
+    const errors = validationResult(req);
+    if(!errors.isEmpty()){
+        return res.status(400).send({errors: errors.array()});
+    }
     const {email, password} = req.body;
     const user = await verifyEmailAndPassword(email, password);
 
@@ -65,9 +70,12 @@ auth.post('/login',async (req,res) => {
 
 });
 
-auth.post('/register', async (req, res) => {
+auth.post('/register', body('email').isEmail(), body('password').isLength({min: 8}), body('name').isString(), async (req, res) => {
+    const errors = validationResult(req);
+    if(!errors.isEmpty()){
+        return res.status(400).send({errors: errors.array()});
+    }
     const {email, password, name} = req.body;
-
     const passwordHash = hashSync(password, 10);
     let user: User;
     try {
